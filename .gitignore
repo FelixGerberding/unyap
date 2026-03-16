@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+/app/build
+/app/.cxx
+*.jks
+*.apk
+*.aab
+# Real signing credentials - keep out of version control (template is committed).
+/keystore.properties

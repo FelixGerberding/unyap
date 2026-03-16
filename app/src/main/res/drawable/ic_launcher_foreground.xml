@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Speech bubble: bounding box centered on the 108x108 viewport center (54,54) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,32 L70,32 C73.9,32 77,35.1 77,39 L77,61 C77,64.9 73.9,68 70,68 L56,68 L47,76 L47,68 L38,68 C34.1,68 31,64.9 31,61 L31,39 C31,35.1 34.1,32 38,32 Z"/>
+
+    <!-- Audio waveform bars: centered at x=54, y=50 (the bubble body center) -->
+    <path
+        android:pathData="M42,45 L42,55"
+        android:strokeWidth="3"
+        android:strokeColor="#6750A4"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M48,39 L48,61"
+        android:strokeWidth="3"
+        android:strokeColor="#6750A4"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M54,43 L54,57"
+        android:strokeWidth="3"
+        android:strokeColor="#6750A4"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M60,37 L60,63"
+        android:strokeWidth="3"
+        android:strokeColor="#6750A4"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M66,44 L66,56"
+        android:strokeWidth="3"
+        android:strokeColor="#6750A4"
+        android:strokeLineCap="round"/>
+</vector>
