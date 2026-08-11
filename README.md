@@ -2,6 +2,10 @@
 
 Read any voice note. Unyap is an Android app that transcribes voice notes to text entirely on your device, using [whisper.cpp](https://github.com/ggerganov/whisper.cpp). No audio or text ever leaves your phone.
 
+I wrote up [how it is built](https://blog.felix.codes/unyap--hobby-project): streaming tokens out of
+whisper.cpp through a callback that was never meant for it, decoding WhatsApp's Opus with
+MediaCodec, and shipping every ARM CPU variant so it does not SIGILL on older phones.
+
 ## How it works
 
 1. Share a voice note (e.g. from WhatsApp) to Unyap, or pick an audio file in the app
