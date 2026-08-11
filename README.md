@@ -6,6 +6,8 @@ I wrote up [how it is built](https://blog.felix.codes/unyap--hobby-project): str
 whisper.cpp through a callback that was never meant for it, decoding WhatsApp's Opus with
 MediaCodec, and shipping every ARM CPU variant so it does not SIGILL on older phones.
 
+[Download on PlayStore](https://play.google.com/store/apps/details?id=codes.felix.whisp)
+
 ## How it works
 
 1. Share a voice note (e.g. from WhatsApp) to Unyap, or pick an audio file in the app
