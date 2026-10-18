@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cleartext only for fetching inputs from the host via adb reverse. -->
+    <application android:usesCleartextTraffic="true">
+        <!-- Exported so it can be driven with `adb shell am start`; benchmark builds only. -->
+        <activity
+            android:name=".BenchActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+    </application>
+</manifest>

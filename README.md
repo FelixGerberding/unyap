@@ -14,7 +14,7 @@ MediaCodec, and shipping every ARM CPU variant so it does not SIGILL on older ph
 2. Words stream in as they are transcribed
 3. Select, copy, or share the transcript
 
-On first launch, Unyap downloads the Whisper Small model (~190 MB) once. After that, the app never makes a network request.
+On first launch, Unyap downloads the Whisper Small model (~265 MB) once. After that, the app never makes a network request.
 
 ## Screenshots
 
@@ -34,8 +34,9 @@ On first launch, Unyap downloads the Whisper Small model (~190 MB) once. After t
 - Select and copy any part of the transcript
 - Share the transcript as plain text to any app
 - On-device only: the sole network request is the one-time model download
+- Skips silence and transcribes in short chunks, so the first words appear within about a second
 - Tuned for ARM: NEON, dotprod, and i8mm instructions
-- Roughly real-time on a recent phone (~15s of audio in ~15s on a Pixel 8)
+- About 10x faster than real time on a recent phone (a minute of audio in ~6s on a Pixel 8)
 
 ## Privacy
 
@@ -70,7 +71,8 @@ Release signing credentials are kept out of version control. To build a signed r
 
 - Kotlin + Jetpack Compose
 - whisper.cpp via JNI, running on the CPU with a quantized `q8_0` model
-- `MediaCodec` for audio decoding (no external audio libraries)
+- [Silero VAD](https://github.com/snakers4/silero-vad) (bundled, <1 MB) to skip silence and pick chunk boundaries
+- libopus for Opus voice notes (WhatsApp, Telegram); `MediaCodec` for other formats
 - Min SDK 29 (Android 10), target SDK 35
 
 ## Project structure
@@ -78,19 +80,24 @@ Release signing credentials are kept out of version control. To build a signed r
 ```
 app/src/main/
   cpp/
-    jni_bridge.cpp            JNI bridge to whisper.cpp
+    jni_bridge.cpp            JNI bridge: VAD, chunking, whisper.cpp, Opus decoding
     whisper.cpp/              git submodule
+    opus/                     git submodule (libopus)
+  assets/
+    ggml-silero-v6.2.0.bin    Silero VAD model
   java/codes/felix/whisp/
     TranscribeActivity.kt     Entry point, share-intent and file-picker handling
-    audio/OpusDecoder.kt      MediaCodec audio decoder
+    audio/OpusDecoder.kt      Audio decoding (libopus for Opus, else MediaCodec)
     whisper/WhisperEngine.kt  Model management and streaming transcription
     whisper/WhisperResult.kt  Transcription result model
     ui/ModelDownloadScreen.kt One-time model download
     ui/TranscriptScreen.kt    Streaming transcription UI
+app/src/benchmark/            Benchmark entry point (benchmark build type only)
+tools/bench/                  Speed and accuracy benchmark, see its README
 ```
 
 ## License
 
 Released under the [MIT License](LICENSE).
 
-Bundles [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (also MIT) as a submodule, and downloads the Whisper model from [ggerganov/whisper.cpp on Hugging Face](https://huggingface.co/ggerganov/whisper.cpp) at runtime.
+Bundles [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (MIT) and [libopus](https://opus-codec.org) (BSD 3-Clause) as submodules and the [Silero VAD](https://github.com/snakers4/silero-vad) model (MIT), and downloads the Whisper model from [ggerganov/whisper.cpp on Hugging Face](https://huggingface.co/ggerganov/whisper.cpp) at runtime.

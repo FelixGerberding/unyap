@@ -31,7 +31,7 @@ fun ModelDownloadScreen(onReady: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     // Keep the screen on while downloading: sleeping can drop the connection
-    // mid-transfer on a ~190 MB download.
+    // mid-transfer on a ~265 MB download.
     DisposableEffect(downloading) {
         val window = (context as? Activity)?.window
         if (downloading) {
@@ -148,7 +148,7 @@ fun ModelDownloadScreen(onReady: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                "Whisper Small model (~190 MB) - stored locally, used for all future transcriptions. " +
+                "Whisper Small model (~265 MB) - stored locally, used for all future transcriptions. " +
                     "No audio ever leaves your device.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

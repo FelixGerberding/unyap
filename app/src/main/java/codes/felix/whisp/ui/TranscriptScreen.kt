@@ -42,9 +42,11 @@ fun TranscriptScreen(
     val clipboard = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
-    // Elapsed time counter
-    LaunchedEffect(state) {
-        if (state is TranscribeState.Loading || state is TranscribeState.Streaming) {
+    // Elapsed time counter. Keyed on whether a run is in progress rather than on
+    // state itself, which changes with every streamed token and would reset it.
+    val running = state is TranscribeState.Loading || state is TranscribeState.Streaming
+    LaunchedEffect(running) {
+        if (running) {
             elapsedSeconds = 0
             while (true) {
                 delay(1000)
@@ -66,12 +68,15 @@ fun TranscriptScreen(
         try {
             val pcm = OpusDecoder.decodeToFloatArray(context, audioUri)
             state = TranscribeState.Streaming("")
-            var accumulated = ""
+            var committed = ""
             engine.transcribeStreaming(pcm).collect { event ->
                 when (event) {
+                    is WhisperEngine.StreamEvent.Partial -> {
+                        state = TranscribeState.Streaming((committed + event.text).trim())
+                    }
                     is WhisperEngine.StreamEvent.Segment -> {
-                        accumulated += event.text
-                        state = TranscribeState.Streaming(accumulated.trim())
+                        committed += event.text
+                        state = TranscribeState.Streaming(committed.trim())
                     }
                     is WhisperEngine.StreamEvent.Done -> {
                         state = TranscribeState.Done(event.result)
@@ -111,7 +116,7 @@ fun TranscriptScreen(
                             .verticalScroll(scrollState)
                     ) {
                         Text(
-                            text = s.textSoFar,
+                            text = rememberTypewriterText(s.textSoFar),
                             style = MaterialTheme.typography.bodyLarge,
                             lineHeight = 26.sp
                         )
@@ -207,6 +212,36 @@ fun TranscriptScreen(
             }
         }
     }
+}
+
+// Text arrives in bursts, one per transcribed chunk. Reveal it at a steady
+// pace instead, speeding up when the backlog grows so it never trails the
+// transcription by more than a few seconds.
+private const val REVEAL_CHARS_PER_SECOND = 30f
+private const val REVEAL_MAX_LAG_SECONDS = 3f
+
+@Composable
+private fun rememberTypewriterText(target: String): String {
+    var shown by remember { mutableStateOf("") }
+    LaunchedEffect(target) {
+        // A replaced partial can shrink or rewrite the text; keep what still matches.
+        if (!target.startsWith(shown)) shown = shown.commonPrefixWith(target)
+        var budget = 0f
+        var last = withFrameNanos { it }
+        while (shown.length < target.length) {
+            val now = withFrameNanos { it }
+            val backlog = target.length - shown.length
+            val rate = maxOf(REVEAL_CHARS_PER_SECOND, backlog / REVEAL_MAX_LAG_SECONDS)
+            budget += rate * (now - last) / 1_000_000_000f
+            last = now
+            val step = budget.toInt()
+            if (step > 0) {
+                budget -= step
+                shown = target.substring(0, minOf(target.length, shown.length + step))
+            }
+        }
+    }
+    return shown
 }
 
 private fun languageDisplayName(code: String): String {

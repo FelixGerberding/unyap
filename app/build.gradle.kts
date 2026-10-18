@@ -18,14 +18,14 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "codes.felix.whisp"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "codes.felix.whisp"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 2
-        versionName = "1.0"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.1"
 
         ndk {
             abiFilters += "arm64-v8a"
@@ -44,6 +44,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Installs next to the Play Store build instead of clashing with it.
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -60,6 +65,16 @@ android {
             ndk {
                 debugSymbolLevel = "FULL"
             }
+        }
+        // Release-equivalent build with a benchmark entry point (src/benchmark),
+        // installable next to the other builds. See BenchActivity.
+        create("benchmark") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".bench"
+            versionNameSuffix = "-bench"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+
         }
     }
 
@@ -90,6 +105,11 @@ android {
             // the .so files are extracted to disk, so opt out of the modern
             // compressed-in-APK packaging.
             useLegacyPackaging = true
+            // Don't ship ggml's SVE/SME CPU variants (armv9.x). ggml scores them
+            // highest, but on 128-bit SVE (as in all current phone cores) the
+            // armv9.0 variant ran the encoder ~3x slower than the NEON+i8mm
+            // armv8.6 one. jni_bridge.cpp only loads the NEON variants anyway.
+            excludes += "**/libggml-cpu-android_armv9*.so"
         }
     }
 }

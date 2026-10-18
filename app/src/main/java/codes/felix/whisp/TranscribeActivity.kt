@@ -60,6 +60,8 @@ class TranscribeActivity : ComponentActivity() {
             finish()
             return
         }
+        // Load the model while the shared audio is being decoded.
+        engine.preload()
 
         setContent {
             val darkTheme = isSystemInDarkTheme()

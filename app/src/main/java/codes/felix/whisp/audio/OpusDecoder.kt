@@ -13,6 +13,10 @@ import java.nio.ByteOrder
 
 object OpusDecoder {
 
+    init {
+        System.loadLibrary("whisperjni")
+    }
+
     private const val TARGET_SAMPLE_RATE = 16000
     private const val TIMEOUT_US = 10_000L
 
@@ -32,6 +36,17 @@ object OpusDecoder {
             val format = extractor.getTrackFormat(trackIndex)
             val mime = format.getString(MediaFormat.KEY_MIME)
                 ?: throw IOException("No MIME type in audio track")
+
+            val opusHead = format.getByteBuffer("csd-0")?.order(ByteOrder.LITTLE_ENDIAN)
+            if (mime == MediaFormat.MIMETYPE_AUDIO_OPUS && opusHead != null &&
+                opusHead.remaining() >= 19 && opusHead.get(opusHead.position() + 9) <= 2
+            ) {
+                try {
+                    return@withContext decodeOpusNatively(extractor, opusHead)
+                } finally {
+                    extractor.release()
+                }
+            }
 
             val codec = try {
                 MediaCodec.createDecoderByType(mime)
@@ -62,9 +77,13 @@ object OpusDecoder {
 
             try {
                 while (!outputDone) {
-                    // Feed input
+                    // Feed input without waiting, so the codec's input queue
+                    // stays full. Blocking here (or on output while input is
+                    // still available) costs up to TIMEOUT_US per packet, which
+                    // for 20 ms Opus packets adds seconds per minute of audio.
+                    var fed = false
                     if (!inputDone) {
-                        val inputIndex = codec.dequeueInputBuffer(TIMEOUT_US)
+                        val inputIndex = codec.dequeueInputBuffer(0)
                         if (inputIndex >= 0) {
                             val inputBuffer = codec.getInputBuffer(inputIndex)!!
                             val sampleSize = extractor.readSampleData(inputBuffer, 0)
@@ -79,11 +98,12 @@ object OpusDecoder {
                                 codec.queueInputBuffer(inputIndex, 0, sampleSize, pts, 0)
                                 extractor.advance()
                             }
+                            fed = true
                         }
                     }
 
-                    // Drain output
-                    val outputIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
+                    // Drain output; only wait for it when there was nothing to feed
+                    val outputIndex = codec.dequeueOutputBuffer(bufferInfo, if (fed) 0 else TIMEOUT_US)
                     when {
                         outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                             val outFormat = codec.outputFormat
@@ -141,6 +161,37 @@ object OpusDecoder {
                 monoFloat
             }
         }
+
+    /**
+     * Demuxes all packets and decodes them with libopus, straight to 16 kHz mono.
+     * Much faster than MediaCodec, which costs an IPC round trip per 20 ms packet.
+     * [opusHead] is the OpusHead header (csd-0); mono or stereo streams only.
+     */
+    private fun decodeOpusNatively(extractor: MediaExtractor, opusHead: ByteBuffer): FloatArray {
+        val preSkip = opusHead.getShort(opusHead.position() + 10).toInt() and 0xFFFF
+        var data = ByteArray(1 shl 16)
+        var dataLen = 0
+        var sizes = IntArray(1 shl 12)
+        var n = 0
+        val buf = ByteBuffer.allocate(1 shl 16)  // far larger than any Opus packet
+        while (true) {
+            buf.clear()
+            val size = extractor.readSampleData(buf, 0)
+            if (size < 0) break
+            if (dataLen + size > data.size) data = data.copyOf(maxOf(data.size * 2, dataLen + size))
+            if (n == sizes.size) sizes = sizes.copyOf(n * 2)
+            buf.position(0)
+            buf.limit(size)
+            buf.get(data, dataLen, size)
+            dataLen += size
+            sizes[n++] = size
+            extractor.advance()
+        }
+        return decodeOpusNative(data, sizes.copyOf(n), preSkip)
+            ?: throw IOException("Opus decoding failed")
+    }
+
+    private external fun decodeOpusNative(packets: ByteArray, sizes: IntArray, preSkip: Int): FloatArray?
 
     private fun findAudioTrack(extractor: MediaExtractor): Int? {
         for (i in 0 until extractor.trackCount) {
